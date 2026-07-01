@@ -1,0 +1,210 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: streamvault_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: streamvault
+      POSTGRES_PASSWORD: streamvault_secret
+      POSTGRES_DB: streamvault_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U streamvault']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache + Queue
+  redis:
+    image: redis:7-alpine
+    container_name: streamvault_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Object Storage (S3-compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: streamvault_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: streamvault_admin
+      MINIO_ROOT_PASSWORD: streamvault_minio_secret
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: streamvault_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 streamvault_admin streamvault_minio_secret;
+      /usr/bin/mc mb --ignore-existing myminio/streamvault-raw;
+      /usr/bin/mc mb --ignore-existing myminio/streamvault-hls;
+      /usr/bin/mc mb --ignore-existing myminio/streamvault-thumbnails;
+      /usr/bin/mc anonymous set download myminio/streamvault-hls;
+      /usr/bin/mc anonymous set download myminio/streamvault-thumbnails;
+      exit 0;
+      "
+
+  # Meilisearch — Full-text search
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: streamvault_meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: streamvault_meili_master_key
+      MEILI_ENV: development
+    ports:
+      - '7700:7700'
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:7700/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RTMP Live Streaming Server (Node-Media-Server)
+  rtmp-server:
+    build:
+      context: ./apps/rtmp-server
+      dockerfile: Dockerfile
+    container_name: streamvault_rtmp
+    restart: unless-stopped
+    ports:
+      - '1935:1935'   # RTMP
+      - '8888:8888'   # HTTP-FLV
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_URL: http://api:8000
+    depends_on:
+      - redis
+
+  # NestJS API
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: streamvault_api
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://streamvault:streamvault_secret@postgres:5432/streamvault_db
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: streamvault_admin
+      MINIO_SECRET_KEY: streamvault_minio_secret
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_API_KEY: streamvault_meili_master_key
+      JWT_SECRET: your_jwt_secret_change_in_production
+      JWT_REFRESH_SECRET: your_refresh_secret_change_in_production
+      TRANSCODER_URL: http://transcoder:8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/src:/app/src:ro
+
+  # FastAPI Transcoding Service
+  transcoder:
+    build:
+      context: ./apps/transcoder
+      dockerfile: Dockerfile
+    container_name: streamvault_transcoder
+    restart: unless-stopped
+    ports:
+      - '8001:8001'
+    environment:
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: streamvault_admin
+      MINIO_SECRET_KEY: streamvault_minio_secret
+    depends_on:
+      - redis
+      - minio
+    volumes:
+      - transcoder_tmp:/tmp/streamvault
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: streamvault_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+
+  # Prometheus Metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: streamvault_prometheus
+    restart: unless-stopped
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: streamvault_grafana
+    restart: unless-stopped
+    ports:
+      - '3100:3000'
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  meilisearch_data:
+  transcoder_tmp:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: streamvault_network

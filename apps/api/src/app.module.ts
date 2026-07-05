@@ -21,6 +21,7 @@ import { RecommendationsModule } from './recommendations/recommendations.module'
 import { NotificationsModule } from './notifications/notifications.module';
 import { StorageModule } from './storage/storage.module';
 import { DatabaseModule } from './database/database.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
     imports: [
@@ -73,6 +74,7 @@ import { DatabaseModule } from './database/database.module';
         PaymentsModule,
         RecommendationsModule,
         NotificationsModule,
+        QueueModule,
     ],
     providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },

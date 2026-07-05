@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { User, CreditCard, Bell, Shield } from 'lucide-react';
 
 type Tab = 'profile' | 'billing' | 'notifications' | 'security';
 
 export default function SettingsPage() {
-    const { data: session, status } = useSession();
+    const { isAuthenticated, status } = useAuth(true);
     const router = useRouter();
     const [tab, setTab] = useState<Tab>('profile');
     const [profile, setProfile] = useState({ displayName: '', bio: '' });
@@ -17,15 +17,12 @@ export default function SettingsPage() {
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        if (status === 'unauthenticated') router.push('/login');
-    }, [status, router]);
-
-    useEffect(() => {
-        if (!session) return;
-        api.get('/users/me').then((u) => {
+        if (!isAuthenticated) return;
+        api.get('/users/me').then((res) => {
+            const u = res.data.data;
             setProfile({ displayName: u?.displayName || '', bio: u?.bio || '' });
         });
-    }, [session]);
+    }, [isAuthenticated]);
 
     async function saveProfile(e: React.FormEvent) {
         e.preventDefault();

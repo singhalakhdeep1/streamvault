@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
-import { socket } from '@/lib/socket';
+import { useAuth } from '@/hooks/useAuth';
+import { getLiveSocket } from '@/lib/socket';
 import { formatTimeAgo } from '@/lib/format';
 import { Send, Heart, Users } from 'lucide-react';
 
@@ -23,26 +23,28 @@ interface Props {
 }
 
 export function LiveChat({ streamId, initialViewerCount = 0 }: Props) {
-    const { data: session } = useSession();
+    const { accessToken, isAuthenticated } = useAuth();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [text, setText] = useState('');
     const [viewerCount, setViewerCount] = useState(initialViewerCount);
     const [isConnected, setIsConnected] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const socketRef = useRef<ReturnType<typeof getLiveSocket> | null>(null);
     const [autoScroll, setAutoScroll] = useState(true);
     const [donationAmount, setDonationAmount] = useState('');
     const [showDonation, setShowDonation] = useState(false);
 
     useEffect(() => {
-        socket.connect();
+        const socket = getLiveSocket(streamId);
+        socketRef.current = socket;
 
-        socket.emit('join-stream', { streamId, token: (session as any)?.accessToken });
+        socket.emit('join-stream', { streamId, token: accessToken });
 
         socket.on('connect', () => setIsConnected(true));
         socket.on('disconnect', () => setIsConnected(false));
 
         socket.on('chat-message', (msg: ChatMessage) => {
-            setMessages((prev) => [...prev.slice(-199), msg]); // Keep last 200
+            setMessages((prev) => [...prev.slice(-199), msg]);
         });
 
         socket.on('viewer-count', (count: number) => setViewerCount(count));
@@ -69,7 +71,7 @@ export function LiveChat({ streamId, initialViewerCount = 0 }: Props) {
             socket.off('stream-ended');
             socket.disconnect();
         };
-    }, [streamId, session]);
+    }, [streamId, accessToken]);
 
     useEffect(() => {
         if (autoScroll) {
@@ -79,16 +81,16 @@ export function LiveChat({ streamId, initialViewerCount = 0 }: Props) {
 
     function sendMessage(e: React.FormEvent) {
         e.preventDefault();
-        if (!text.trim() || !session) return;
-        socket.emit('chat-message', { streamId, text: text.trim() });
+        if (!text.trim() || !isAuthenticated) return;
+        socketRef.current?.emit('chat-message', { streamId, text: text.trim() });
         setText('');
     }
 
     function sendDonation(e: React.FormEvent) {
         e.preventDefault();
         const amount = parseFloat(donationAmount);
-        if (!amount || !session) return;
-        socket.emit('donation', { streamId, amount, message: text });
+        if (!amount || !isAuthenticated) return;
+        socketRef.current?.emit('donation', { streamId, amount, message: text });
         setText('');
         setDonationAmount('');
         setShowDonation(false);
@@ -208,8 +210,8 @@ export function LiveChat({ streamId, initialViewerCount = 0 }: Props) {
                         <input
                             value={text}
                             onChange={(e) => setText(e.target.value)}
-                            placeholder={session ? 'Send a message...' : 'Sign in to chat'}
-                            disabled={!session}
+                            placeholder={isAuthenticated ? 'Send a message...' : 'Sign in to chat'}
+                            disabled={!isAuthenticated}
                             maxLength={200}
                             className="flex-1 bg-gray-900 text-white text-sm rounded-full px-4 py-2 outline-none border border-gray-700 focus:border-gray-500 disabled:opacity-50"
                         />
@@ -223,7 +225,7 @@ export function LiveChat({ streamId, initialViewerCount = 0 }: Props) {
                         </button>
                         <button
                             type="submit"
-                            disabled={!text.trim() || !session}
+                            disabled={!text.trim() || !isAuthenticated}
                             className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-500 disabled:opacity-40 transition-colors"
                         >
                             <Send className="w-4 h-4" />

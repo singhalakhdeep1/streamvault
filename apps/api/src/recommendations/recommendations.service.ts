@@ -16,7 +16,7 @@ export class RecommendationsService {
         // Get user's watch history tags for personalization
         const history = await this.prisma.watchHistory.findMany({
             where: { userId },
-            orderBy: { watchedAt: 'desc' },
+            orderBy: { lastWatchedAt: 'desc' },
             take: 50,
             include: { video: { select: { categoryId: true } } },
         });

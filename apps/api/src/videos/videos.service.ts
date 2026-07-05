@@ -148,7 +148,7 @@ export class VideosService {
         ]);
 
         return {
-            data: videos,
+            videos,
             meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
         };
     }
@@ -172,7 +172,12 @@ export class VideosService {
 
         // Notify subscribers if publishing for first time
         if (dto.visibility === 'PUBLIC' && !video.publishedAt) {
-            await this.notifications.notifyNewVideo(videoId, userId);
+            await this.notifications.notifyNewVideo({
+                id: updated.id,
+                title: updated.title,
+                channelId: updated.channelId,
+                thumbnailUrl: updated.thumbnailUrl,
+            });
         }
 
         return updated;
@@ -266,7 +271,56 @@ export class VideosService {
         ]);
 
         return {
-            data: videos,
+            videos,
+            meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        };
+    }
+
+    async getMine(userId: string, query: VideoQueryDto = {}) {
+        const { page = 1, limit = 20 } = query;
+        const channel = await this.prisma.channel.findUnique({ where: { userId } });
+        if (!channel) return { videos: [], meta: { page, limit, total: 0, totalPages: 0 } };
+
+        const where = { channelId: channel.id, status: { not: 'DELETED' as const } };
+        const [videos, total] = await Promise.all([
+            this.prisma.video.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    thumbnails: { where: { isActive: true }, take: 1 },
+                    category: { select: { name: true, slug: true } },
+                },
+            }),
+            this.prisma.video.count({ where }),
+        ]);
+
+        return { videos, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    }
+
+    async getLiked(userId: string, page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
+        const [likes, total] = await Promise.all([
+            this.prisma.like.findMany({
+                where: { userId, isLike: true },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: {
+                    video: {
+                        include: {
+                            thumbnails: { where: { isActive: true }, take: 1 },
+                            channel: { select: { name: true, handle: true, avatarUrl: true } },
+                        },
+                    },
+                },
+            }),
+            this.prisma.like.count({ where: { userId, isLike: true } }),
+        ]);
+
+        return {
+            videos: likes.map((l) => l.video).filter(Boolean),
             meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
         };
     }

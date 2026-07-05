@@ -84,6 +84,26 @@ export class VideosController {
         return this.videosService.toggleLike(id, userId, false);
     }
 
+    @Get('mine')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get current user videos (creator studio)' })
+    getMine(@CurrentUser('id') userId: string, @Query() query: VideoQueryDto) {
+        return this.videosService.getMine(userId, query);
+    }
+
+    @Get('liked')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get liked videos for current user' })
+    getLiked(
+        @CurrentUser('id') userId: string,
+        @Query('page') page = '1',
+        @Query('limit') limit = '20',
+    ) {
+        return this.videosService.getLiked(userId, +page, +limit);
+    }
+
     @Get('channel/:channelId')
     @UseGuards(OptionalJwtGuard)
     @ApiOperation({ summary: 'Get all videos for a channel' })

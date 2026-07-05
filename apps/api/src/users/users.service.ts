@@ -123,36 +123,36 @@ export class UsersService {
         });
     }
 
-    async getWatchHistory(userId: string, page = 1, limit = 20) {
-        const skip = (page - 1) * limit;
-        const [items, total] = await Promise.all([
-            this.prisma.watchHistory.findMany({
-                where: { userId },
-                orderBy: { watchedAt: 'desc' },
-                skip,
-                take: limit,
-                include: {
-                    video: {
-                        select: {
-                            id: true,
-                            title: true,
-                            duration: true,
-                            viewCount: true,
-                            thumbnails: { take: 1 },
-                            channel: { select: { name: true, handle: true, avatarUrl: true } },
-                        },
-                    },
-                },
-            }),
-            this.prisma.watchHistory.count({ where: { userId } }),
-        ]);
-        return { items, total, page, limit };
-    }
+  async getWatchHistory(userId: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      this.prisma.watchHistory.findMany({
+        where: { userId },
+        orderBy: { lastWatchedAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          video: {
+            select: {
+              id: true,
+              title: true,
+              duration: true,
+              viewCount: true,
+              thumbnails: { take: 1 },
+              channel: { select: { name: true, handle: true, avatarUrl: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.watchHistory.count({ where: { userId } }),
+    ]);
+    return { items, total, page, limit };
+  }
 
-    async getWatchLater(userId: string) {
-        return this.prisma.watchLater.findMany({
-            where: { userId },
-            orderBy: { savedAt: 'desc' },
+  async getWatchLater(userId: string) {
+    return this.prisma.watchLater.findMany({
+      where: { userId },
+      orderBy: { addedAt: 'desc' },
             include: {
                 video: {
                     select: {
@@ -180,11 +180,23 @@ export class UsersService {
         return { saved: true };
     }
 
-    async upsertWatchProgress(userId: string, videoId: string, position: number, duration: number) {
-        return this.prisma.watchHistory.upsert({
-            where: { userId_videoId: { userId, videoId } },
-            update: { position, watchedAt: new Date() },
-            create: { userId, videoId, position, duration },
-        });
-    }
+  async upsertWatchProgress(userId: string, videoId: string, position: number, duration: number) {
+    const completionRate = duration > 0 ? Math.min(1, position / duration) : 0;
+    return this.prisma.watchHistory.upsert({
+      where: { userId_videoId: { userId, videoId } },
+      update: {
+        watchedSeconds: position,
+        totalSeconds: duration,
+        completionRate,
+        lastWatchedAt: new Date(),
+      },
+      create: {
+        userId,
+        videoId,
+        watchedSeconds: position,
+        totalSeconds: duration,
+        completionRate,
+      },
+    });
+  }
 }

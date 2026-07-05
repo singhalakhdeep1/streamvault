@@ -5,64 +5,63 @@ import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class StreamingService {
-    constructor(
-        private readonly config: ConfigService,
-        private readonly prisma: PrismaService,
-        private readonly storage: StorageService,
-    ) { }
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
-    async getSignedManifestUrl(videoId: string, userId?: string) {
-        const video = await this.prisma.video.findUnique({
-            where: { id: videoId },
-            select: {
-                id: true,
-                hlsMasterKey: true,
-                visibility: true,
-                isPremium: true,
-                status: true,
-                channelId: true,
-            },
-        });
+  async getSignedManifestUrl(videoId: string, userId?: string) {
+    const video = await this.prisma.video.findUnique({
+      where: { id: videoId },
+      select: {
+        id: true,
+        hlsStorageKey: true,
+        visibility: true,
+        requiresPremium: true,
+        status: true,
+        channelId: true,
+        userId: true,
+      },
+    });
 
-        if (!video || video.status !== 'READY') {
-            return null;
-        }
-
-        if (video.visibility === 'PRIVATE') {
-            const channel = await this.prisma.channel.findUnique({ where: { id: video.channelId } });
-            if (!userId || channel?.userId !== userId) return null;
-        }
-
-        if (video.isPremium && userId) {
-            const user = await this.prisma.user.findUnique({ where: { id: userId } });
-            if (!user?.isPremium) return { requiresPremium: true };
-        }
-
-        // Increment view count (debounced: one per user per video per hour)
-        this.trackView(videoId, userId).catch(() => { });
-
-        const signedUrl = await this.storage.getSignedUrl(
-            `streamvault-hls`,
-            video.hlsMasterKey!,
-            3600, // 1 hour expiry
-        );
-
-        return { url: signedUrl };
+    if (!video || video.status !== 'READY') {
+      return null;
     }
 
-    private async trackView(videoId: string, userId?: string) {
-        // Simple increment — in production use Redis with TTL per user/video
-        await this.prisma.video.update({
-            where: { id: videoId },
-            data: { viewCount: { increment: 1 } },
-        });
-
-        if (userId) {
-            await this.prisma.watchHistory.upsert({
-                where: { userId_videoId: { userId, videoId } },
-                update: { watchedAt: new Date() },
-                create: { userId, videoId, position: 0, duration: 0 },
-            });
-        }
+    if (video.visibility === 'PRIVATE') {
+      if (!userId || video.userId !== userId) return null;
     }
+
+    if (video.requiresPremium && userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user?.isPremium) return { requiresPremium: true };
+    }
+
+    void this.trackView(videoId, userId);
+
+    const bucket = this.config.get('MINIO_HLS_BUCKET', 'streamvault-hls');
+    const signedUrl = await this.storage.getSignedUrl(
+      bucket,
+      `${video.hlsStorageKey}/master.m3u8`,
+      3600,
+    );
+
+    return { url: signedUrl };
+  }
+
+  private async trackView(videoId: string, userId?: string) {
+    await this.prisma.video.update({
+      where: { id: videoId },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    if (userId) {
+      await this.prisma.watchHistory.upsert({
+        where: { userId_videoId: { userId, videoId } },
+        update: { lastWatchedAt: new Date(), watchCount: { increment: 1 } },
+        create: { userId, videoId, watchedSeconds: 0, totalSeconds: 0 },
+      });
+    }
+  }
 }

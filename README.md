@@ -2,7 +2,7 @@
 
 > **Production-grade OTT platform** — HLS adaptive bitrate streaming, RTMP live broadcasting, FFmpeg transcoding pipeline, creator monetization, and real-time engagement.
 
-> **Portfolio status:** ~**65% complete** (was ~35%) — Phase A compile/boot fixes applied; infrastructure (RTMP, Docker, WebRTC) still pending.
+<!-- > **Portfolio status:** ~**65% complete** (was ~35%) — Phase A compile/boot fixes applied; infrastructure (RTMP, Docker, WebRTC) still pending. -->
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10-red?logo=nestjs)](https://nestjs.com/)

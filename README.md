@@ -15,11 +15,11 @@
 
 ---
 
-## 📋 Resume Bullet
+<!--  ## 📋 Resume Bullet
 
 > _"Built StreamVault — full-stack OTT platform with FFmpeg HLS adaptive bitrate transcoding (360p–1080p), RTMP live streaming via Node-Media-Server + mediasoup WebRTC SFU, Redis fan-out viewer counts, BullMQ processing queues, and Stripe Connect creator monetization. Custom HLS.js player with resume playback, chapter markers, ABR quality switching, and picture-in-picture support."_
 
----
+--- -->
 
 ## 🏗️ Architecture
 

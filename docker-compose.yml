@@ -102,11 +102,36 @@ services:
     ports:
       - '1935:1935'   # RTMP
       - '8888:8888'   # HTTP-FLV
+      - '8443:8443'   # HTTPS-FLV
     environment:
       REDIS_URL: redis://redis:6379
       API_URL: http://api:8000
+      RTMP_PORT: 1935
+      HTTP_PORT: 8888
+      HTTPS_PORT: 8443
     depends_on:
       - redis
+      - api
+    volumes:
+      - ./apps/rtmp-server/config:/app/config
+
+  # WebRTC SFU (mediasoup)
+  webrtc-sfu:
+    build:
+      context: ./apps/webrtc-sfu
+      dockerfile: Dockerfile
+    container_name: streamvault_webrtc
+    restart: unless-stopped
+    ports:
+      - '4000:4000'   # WebSocket
+      - '40000-40100:40000-40100/udp'  # UDP for media
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_URL: http://api:8000
+      MEDIASOUP_PORT: 4000
+    depends_on:
+      - redis
+      - api
 
   # NestJS API
   api:

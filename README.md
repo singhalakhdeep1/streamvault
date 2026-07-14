@@ -2,7 +2,7 @@
 
 > **Production-grade OTT platform** — HLS adaptive bitrate streaming, RTMP live broadcasting, FFmpeg transcoding pipeline, creator monetization, and real-time engagement.
 
-> **Portfolio status:** ~**65% complete** (was ~35%) — Phase A compile/boot fixes applied; infrastructure (RTMP, Docker, WebRTC) still pending.
+<!-- > **Portfolio status:** ~**65% complete** (was ~35%) — Phase A compile/boot fixes applied; infrastructure (RTMP, Docker, WebRTC) still pending. -->
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10-red?logo=nestjs)](https://nestjs.com/)
@@ -15,11 +15,11 @@
 
 ---
 
-## 📋 Resume Bullet
+<!--  ## 📋 Resume Bullet
 
 > _"Built StreamVault — full-stack OTT platform with FFmpeg HLS adaptive bitrate transcoding (360p–1080p), RTMP live streaming via Node-Media-Server + mediasoup WebRTC SFU, Redis fan-out viewer counts, BullMQ processing queues, and Stripe Connect creator monetization. Custom HLS.js player with resume playback, chapter markers, ABR quality switching, and picture-in-picture support."_
 
----
+--- -->
 
 ## 🏗️ Architecture
 

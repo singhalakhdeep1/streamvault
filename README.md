@@ -1,27 +1,10 @@
-# StreamVault 🎬
+# StreamVault
 
-> **Production-grade OTT platform** — HLS adaptive bitrate streaming, RTMP live broadcasting, FFmpeg transcoding pipeline, creator monetization, and real-time engagement.
-
-<!-- > **Portfolio status:** ~**65% complete** (was ~35%) — Phase A compile/boot fixes applied; infrastructure (RTMP, Docker, WebRTC) still pending. -->
-
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-10-red?logo=nestjs)](https://nestjs.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Python-green?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)](https://redis.io/)
-[![BullMQ](https://img.shields.io/badge/BullMQ-Queues-orange)](https://docs.bullmq.io/)
-[![FFmpeg](https://img.shields.io/badge/FFmpeg-HLS-green?logo=ffmpeg)](https://ffmpeg.org/)
+A production-grade OTT platform with HLS adaptive bitrate streaming, RTMP live broadcasting, FFmpeg transcoding pipeline, creator monetization, and real-time engagement.
 
 ---
 
-<!--  ## 📋 Resume Bullet
-
-> _"Built StreamVault — full-stack OTT platform with FFmpeg HLS adaptive bitrate transcoding (360p–1080p), RTMP live streaming via Node-Media-Server + mediasoup WebRTC SFU, Redis fan-out viewer counts, BullMQ processing queues, and Stripe Connect creator monetization. Custom HLS.js player with resume playback, chapter markers, ABR quality switching, and picture-in-picture support."_
-
---- -->
-
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -55,9 +38,9 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎬 Video Platform
+### Video Platform
 
 - **Chunked resumable upload** — TUS protocol handles 10GB+ files reliably
 - **FFmpeg multi-quality transcoding** — 360p, 480p, 720p, 1080p output
@@ -66,7 +49,7 @@
 - **Chapter markers** — Timeline thumbnails, skip intro/outro (Netflix-style)
 - **Subtitle support** — SRT/VTT/ASS format upload and display
 
-### 📡 Live Streaming
+### Live Streaming
 
 - **RTMP ingestion** — OBS-compatible via Node-Media-Server
 - **WebRTC browser streaming** — Broadcast directly from browser (mediasoup SFU)
@@ -75,7 +58,7 @@
 - **Live viewer count** — WebSocket-broadcast Redis counter
 - **Stream-to-VOD** — Auto-converts recording after stream ends
 
-### 👨‍🎨 Creator Studio
+### Creator Studio
 
 - **Channel management** — Custom banner, avatar, description
 - **Video analytics** — Views, watch time, audience retention graph
@@ -84,7 +67,7 @@
 - **Subscription management** — Subscriber list, notification broadcasts
 - **Community posts** — Channel updates (YouTube Community tab equivalent)
 
-### 🔍 Discovery & Recommendations
+### Discovery & Recommendations
 
 - **Meilisearch** — Typo-tolerant instant search
 - **Collaborative filtering** — "Users like you watched…"
@@ -92,7 +75,7 @@
 - **Trending algorithm** — Views + velocity + engagement score
 - **Personalized homepage** — Carousels by watch history
 
-### 💰 Monetization
+### Monetization
 
 - **Free tier** (ads) + **Premium** (ad-free, 4K, downloads)
 - **Stripe subscriptions** with free trial + annual billing
@@ -237,3 +220,9 @@ MinIO Console: http://localhost:9001
 | **Job Queue**             | BullMQ with retry, backoff, concurrency control            |
 | **Content Security**      | CloudFront signed URLs (time-limited, IP-restricted)       |
 | **Recommendation Engine** | Cosine similarity on watch vectors in PostgreSQL           |
+
+---
+
+## 📝 License
+
+Proprietary - All rights reserved.

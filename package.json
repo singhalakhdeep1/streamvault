@@ -1,29 +1,30 @@
 {
-    "name": "streamvault",
-    "version": "1.0.0",
-    "private": true,
-    "description": "Production-grade OTT video streaming platform",
-    "workspaces": [
-        "apps/web",
-        "apps/api",
-        "packages/*"
-    ],
-    "scripts": {
-        "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:transcoder\"",
-        "dev:api": "cd apps/api && npm run start:dev",
-        "dev:web": "cd apps/web && npm run dev",
-        "dev:transcoder": "cd apps/transcoder && uvicorn main:app --reload --port 8001",
-        "build": "npm run build:api && npm run build:web",
-        "build:api": "cd apps/api && npm run build",
-        "build:web": "cd apps/web && npm run build",
-        "db:migrate": "cd apps/api && npx prisma migrate dev",
-        "db:generate": "cd apps/api && npx prisma generate",
-        "db:seed": "cd apps/api && npx prisma db seed",
-        "docker:up": "docker-compose up -d",
-        "docker:down": "docker-compose down",
-        "docker:logs": "docker-compose logs -f"
-    },
-    "devDependencies": {
-        "concurrently": "^8.2.2"
-    }
+  "name": "streamvault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade OTT video streaming platform",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:transcoder\"",
+    "dev:api": "cd apps/api && npm run start:dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:transcoder": "cd apps/transcoder && uvicorn main:app --reload --port 8001",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "cd apps/api && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "db:migrate": "cd apps/api && npx prisma migrate dev",
+    "db:generate": "cd apps/api && npx prisma generate",
+    "db:seed": "cd apps/api && npx prisma db seed",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "test": "node --test tests/smoke.test.cjs"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }

@@ -218,121 +218,62 @@ export class SubtitlesService {
   }
 
   /**
-   * Generate subtitles from video metadata (simulated)
+   * Generate subtitles from video audio using OpenAI Whisper speech-to-text
    */
   private async generateFromMetadata(video: Video, language: string): Promise<Array<{
     start: number;
     end: number;
     text: string;
   }>> {
-    // In production, this would use actual speech-to-text
-    // For now, generate placeholder subtitles based on video content
-    const segments = Math.ceil(video.duration / 10); // One segment every 10 seconds
-    const subtitles = [];
-
-    for (let i = 0; i < segments; i++) {
-      const start = i * 10;
-      const end = Math.min((i + 1) * 10, video.duration);
-      
-      // Generate placeholder text based on video category
-      const placeholderText = this.generatePlaceholderText(video, i, language);
-      
-      subtitles.push({
-        start,
-        end,
-        text: placeholderText,
-      });
+    if (!video.url) {
+      this.logger.warn(`Video ${video.id} has no URL — cannot transcribe`);
+      return [];
     }
 
-    return subtitles;
+    try {
+      // Download the audio/video file
+      const response = await fetch(video.url);
+      if (!response.ok) throw new Error(`Failed to fetch video: ${response.status}`);
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // Use OpenAI Whisper with verbose JSON to get word-level timestamps
+      const transcription = await this.openai.audio.transcriptions.create({
+        file: new File([buffer], 'audio.mp4', { type: 'audio/mp4' }),
+        model: 'whisper-1',
+        response_format: 'verbose_json',
+        language: language !== 'en' ? language : undefined,
+        timestamp_granularities: ['segment'],
+      } as any);
+
+      // Map Whisper segments to our SubtitleTrack format
+      if ((transcription as any).segments?.length) {
+        return (transcription as any).segments.map((seg: any) => ({
+          start: seg.start,
+          end: seg.end,
+          text: seg.text.trim(),
+        }));
+      }
+
+      // Fallback: split plain text into 10-second chunks by word count
+      const words = transcription.text.split(' ');
+      const wordsPerSegment = Math.max(1, Math.round(words.length / Math.ceil(video.duration / 10)));
+      const segments: Array<{ start: number; end: number; text: string }> = [];
+
+      for (let i = 0; i * wordsPerSegment < words.length; i++) {
+        const chunk = words.slice(i * wordsPerSegment, (i + 1) * wordsPerSegment).join(' ');
+        segments.push({
+          start: i * 10,
+          end: Math.min((i + 1) * 10, video.duration),
+          text: chunk,
+        });
+      }
+      return segments;
+    } catch (error) {
+      this.logger.error(`Whisper transcription failed for video ${video.id}:`, error);
+      return [];
+    }
   }
 
-  /**
-   * Generate placeholder subtitle text
-   */
-  private generatePlaceholderText(video: Video, segment: number, language: string): string {
-    const texts = {
-      en: [
-        'Welcome to this video',
-        'In this section, we will explore',
-        'Let me show you how this works',
-        'As you can see here',
-        'This is an important point',
-        'Moving on to the next topic',
-        'Let me demonstrate this',
-        'Here are the key takeaways',
-        'To summarize what we discussed',
-        'Thank you for watching',
-      ],
-      es: [
-        'Bienvenido a este video',
-        'En esta sección, exploraremos',
-        'Déjame mostrarte cómo funciona',
-        'Como puedes ver aquí',
-        'Este es un punto importante',
-        'Pasando al siguiente tema',
-        'Déjame demostrar esto',
-        'Aquí están los puntos clave',
-        'Para resumir lo que discutimos',
-        'Gracias por ver',
-      ],
-      fr: [
-        'Bienvenue dans cette vidéo',
-        'Dans cette section, nous allons explorer',
-        'Laissez-moi vous montrer comment cela fonctionne',
-        'Comme vous pouvez le voir ici',
-        'C\'est un point important',
-        'Passons au sujet suivant',
-        'Laissez-moi vous montrer cela',
-        'Voici les points clés',
-        'Pour résumer ce que nous avons discuté',
-        'Merci d\'avoir regardé',
-      ],
-      de: [
-        'Willkommen in diesem Video',
-        'In diesem Abschnitt werden wir erkunden',
-        'Lassen Sie mich zeigen, wie das funktioniert',
-        'Wie Sie hier sehen können',
-        'Das ist ein wichtiger Punkt',
-        'Lassen Sie uns zum nächsten Thema übergehen',
-        'Lassen Sie mich das demonstrieren',
-        'Hier sind die wichtigsten Punkte',
-        'Um zusammenzufassen, was wir besprochen haben',
-        'Danke fürs Zuschauen',
-      ],
-      ja: [
-        'このビデオへようこそ',
-        'このセクションでは、探索します',
-        'これがどのように機能するか見せてください',
-        'ここで見ることができます',
-        'これは重要なポイントです',
-        '次のトピックに移りましょう',
-        'これを実演しましょう',
-        'ここに重要なポイントがあります',
-        '議論したことを要約すると',
-        'ご視聴ありがとうございます',
-      ],
-      zh: [
-        '欢迎观看此视频',
-        '在本节中，我们将探索',
-        '让我向您展示这是如何工作的',
-        '正如您在这里看到的',
-        '这是一个重要点',
-        '让我们进入下一个主题',
-        '让我演示一下',
-        '这里是关键要点',
-        '总结我们讨论的内容',
-        '感谢观看',
-      ],
-    };
-
-    const languageTexts = texts[language] || texts['en'];
-    return languageTexts[segment % languageTexts.length];
-  }
-
-  /**
-   * Translate text using AI
-   */
   private async translateText(text: string, fromLang: string, toLang: string): Promise<string> {
     try {
       const response = await this.openai.chat.completions.create({

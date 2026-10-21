@@ -1,46 +1,68 @@
-import axios from 'axios';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
-    withCredentials: true,
-});
+function getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('access_token');
+}
 
-// Attach JWT token from localStorage on every request
-api.interceptors.request.use(config => {
-    if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('access_token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
+async function refreshTokens(): Promise<string | null> {
+    const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+    if (!refreshToken) return null;
 
-// Auto-refresh access token on 401
-api.interceptors.response.use(
-    res => res,
-    async error => {
-        const original = error.config;
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${refreshToken}` },
+    });
+    if (!res.ok) return null;
 
-        if (error.response?.status === 401 && !original._retry) {
-            original._retry = true;
-            try {
-                const refreshToken = localStorage.getItem('refresh_token');
-                const { data } = await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/auth/refresh`,
-                    {},
-                    { headers: { Authorization: `Bearer ${refreshToken}` } },
-                );
-                localStorage.setItem('access_token', data.data.accessToken);
-                localStorage.setItem('refresh_token', data.data.refreshToken);
-                original.headers.Authorization = `Bearer ${data.data.accessToken}`;
-                return api(original);
-            } catch {
-                // Clear auth and redirect to login
+    const { data } = await res.json();
+    localStorage.setItem('access_token', data.accessToken);
+    localStorage.setItem('refresh_token', data.refreshToken);
+    return data.accessToken;
+}
+
+async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(init.headers as Record<string, string>),
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    let res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...init, headers });
+
+    if (res.status === 401) {
+        const newToken = await refreshTokens();
+        if (newToken) {
+            headers['Authorization'] = `Bearer ${newToken}`;
+            res = await fetch(`${BASE_URL}${path}`, { credentials: 'include', ...init, headers });
+        } else {
+            if (typeof window !== 'undefined') {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 window.location.href = '/login';
             }
         }
+    }
 
-        return Promise.reject(error);
-    },
-);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const e = new Error((err as any).message || res.statusText) as any;
+        e.status = res.status;
+        e.data = err;
+        throw e;
+    }
+
+    return res.json() as Promise<T>;
+}
+
+export const api = {
+    get: <T>(path: string, init?: RequestInit) => apiFetch<T>(path, { method: 'GET', ...init }),
+    post: <T>(path: string, body?: unknown, init?: RequestInit) =>
+        apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body), ...init }),
+    put: <T>(path: string, body?: unknown, init?: RequestInit) =>
+        apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(body), ...init }),
+    patch: <T>(path: string, body?: unknown, init?: RequestInit) =>
+        apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body), ...init }),
+    delete: <T>(path: string, init?: RequestInit) => apiFetch<T>(path, { method: 'DELETE', ...init }),
+};

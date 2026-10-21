@@ -1,0 +1,18 @@
+{
+  "name": "@streamvault/rtmp-server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "ioredis": "^5.3.2",
+    "node-media-server": "^2.7.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

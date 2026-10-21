@@ -8,7 +8,6 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const Redis = require('ioredis');
-const axios = require('axios');
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 const API_URL = process.env.API_URL || 'http://localhost:8000';

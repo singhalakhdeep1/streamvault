@@ -2,7 +2,6 @@ import { Process, Processor, OnQueueActive, OnQueueCompleted, OnQueueFailed } fr
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
 import { PrismaService } from '../../database/prisma.service';
 import { StorageService } from '../../storage/storage.service';
 import { NotificationsGateway } from '../../notifications/notifications.gateway';
@@ -55,25 +54,30 @@ export class TranscodingProcessor {
             // Call FastAPI transcoder service
             const transcoderUrl = this.config.get('TRANSCODER_URL', 'http://localhost:8001');
 
-            const response = await axios.post(
-                `${transcoderUrl}/api/transcode`,
-                {
+            const transcoderRes = await fetch(`${transcoderUrl}/api/transcode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Internal-Secret': this.config.get('TRANSCODER_SECRET'),
+                },
+                body: JSON.stringify({
                     video_id: videoId,
                     source_url: rawDownloadUrl,
                     output_bucket: this.config.get('MINIO_HLS_BUCKET'),
                     qualities: ['1080p', '720p', '480p', '360p'],
                     generate_thumbnails: true,
                     thumbnail_count: 5,
-                },
-                {
-                    headers: { 'X-Internal-Secret': this.config.get('TRANSCODER_SECRET') },
-                    timeout: 3600000, // 1 hour timeout for long videos
-                },
-            );
+                }),
+                signal: AbortSignal.timeout(3600000),
+            });
+
+            if (!transcoderRes.ok) {
+                throw new Error(`Transcoder returned ${transcoderRes.status}`);
+            }
 
             await job.progress(90);
 
-            const result = response.data;
+            const result = await transcoderRes.json();
 
             // Save quality records
             const qualityCreates = result.qualities.map((q: any) => ({

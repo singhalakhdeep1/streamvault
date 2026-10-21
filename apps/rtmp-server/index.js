@@ -5,7 +5,6 @@
 
 const NodeMediaServer = require('node-media-server');
 const Redis = require('ioredis');
-const axios = require('axios');
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 const API_URL = process.env.API_URL || 'http://localhost:8000';
@@ -54,31 +53,25 @@ const nms = new NodeMediaServer(config);
 
 nms.on('prePublish', async (id, StreamPath, args) => {
   console.log('[NodeEvent on prePublish]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
-  
-  // Extract stream key from path
+
   const streamKey = StreamPath.split('/').pop();
-  
+
   try {
-    // Validate stream key with API
-    const response = await axios.post(`${API_URL}/live/validate`, {
-      stream_key: streamKey
+    const response = await fetch(`${API_URL}/live/rtmp/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: streamKey }),
     });
-    
-    if (!response.data.valid) {
-      console.log('Invalid stream key, rejecting connection');
+
+    if (!response.ok) {
+      console.log('Stream publish rejected by API, rejecting connection');
       const session = nms.getSession(id);
       session.reject();
     } else {
-      console.log('Stream validated successfully');
-      
-      // Notify API that stream is starting
-      await axios.post(`${API_URL}/live/start`, {
-        stream_key: streamKey,
-        stream_path: StreamPath
-      });
+      console.log('Stream publish accepted');
     }
   } catch (error) {
-    console.error('Error validating stream:', error.message);
+    console.error('Error calling publish hook:', error.message);
     const session = nms.getSession(id);
     session.reject();
   }
@@ -86,17 +79,15 @@ nms.on('prePublish', async (id, StreamPath, args) => {
 
 nms.on('postPublish', async (id, StreamPath, args) => {
   console.log('[NodeEvent on postPublish]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
-  
+
   const streamKey = StreamPath.split('/').pop();
-  
-  // Store stream info in Redis
+
   await redis.hset('streams', streamKey, JSON.stringify({
     stream_path: StreamPath,
     started_at: new Date().toISOString(),
     status: 'live'
   }));
-  
-  // Publish stream start event
+
   await redis.publish('stream_events', JSON.stringify({
     event: 'stream_started',
     stream_key: streamKey,
@@ -107,27 +98,25 @@ nms.on('postPublish', async (id, StreamPath, args) => {
 
 nms.on('done', async (id, StreamPath, args) => {
   console.log('[NodeEvent on done]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
-  
+
   const streamKey = StreamPath.split('/').pop();
-  
-  // Update stream status in Redis
+
   await redis.hset('streams', streamKey, JSON.stringify({
     stream_path: StreamPath,
     ended_at: new Date().toISOString(),
     status: 'ended'
   }));
-  
-  // Notify API that stream has ended
+
   try {
-    await axios.post(`${API_URL}/live/end`, {
-      stream_key: streamKey,
-      stream_path: StreamPath
+    await fetch(`${API_URL}/live/rtmp/done`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: streamKey }),
     });
   } catch (error) {
-    console.error('Error notifying API of stream end:', error.message);
+    console.error('Error calling done hook:', error.message);
   }
-  
-  // Publish stream end event
+
   await redis.publish('stream_events', JSON.stringify({
     event: 'stream_ended',
     stream_key: streamKey,
@@ -138,21 +127,18 @@ nms.on('done', async (id, StreamPath, args) => {
 
 nms.on('prePlay', (id, StreamPath, args) => {
   console.log('[NodeEvent on prePlay]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
-  
-  // Increment viewer count in Redis
+
   const streamKey = StreamPath.split('/').pop();
   redis.incr(`viewers:${streamKey}`);
 });
 
 nms.on('donePlay', (id, StreamPath, args) => {
   console.log('[NodeEvent on donePlay]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
-  
-  // Decrement viewer count in Redis
+
   const streamKey = StreamPath.split('/').pop();
   redis.decr(`viewers:${streamKey}`);
 });
 
-// Health check endpoint
 nms.run();
 
 const express = require('express');

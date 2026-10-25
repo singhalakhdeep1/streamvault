@@ -20,15 +20,17 @@ async function getStream(streamId: string) {
     }
 }
 
-export async function generateMetadata({ params }: { params: { streamId: string } }) {
-    const stream = await getStream(params.streamId);
+export async function generateMetadata({ params }: { params: Promise<{ streamId: string }> }) {
+    const { streamId } = await params;
+    const stream = await getStream(streamId);
     return {
-        title: stream ? `🔴 ${stream.title} — StreamVault Live` : 'Live Stream',
+        title: stream ? `Live ${stream.title} — StreamVault Live` : 'Live Stream',
     };
 }
 
-export default async function LivePage({ params }: { params: { streamId: string } }) {
-    const stream = await getStream(params.streamId);
+export default async function LivePage({ params }: { params: Promise<{ streamId: string }> }) {
+    const { streamId } = await params;
+    const stream = await getStream(streamId);
 
     if (!stream) notFound();
 
@@ -99,7 +101,7 @@ export default async function LivePage({ params }: { params: { streamId: string 
 
                 {/* Live chat sidebar */}
                 <div className="w-full xl:w-[360px] xl:h-[calc(100vh-120px)] flex-shrink-0">
-                    <LiveChat streamId={params.streamId} initialViewerCount={stream.viewerCount} />
+                    <LiveChat streamId={streamId} initialViewerCount={stream.viewerCount} />
                 </div>
             </div>
         </div>

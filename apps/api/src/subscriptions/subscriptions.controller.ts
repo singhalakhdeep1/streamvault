@@ -33,6 +33,6 @@ export class SubscriptionsController {
         @Param('channelId') channelId: string,
         @Body() body: { type: string },
     ) {
-        return this.subscriptions.updateNotificationPreference(user.id, channelId, body.type);
+        return this.subscriptions.updateNotificationPreference(user.id, channelId, body.type as any);
     }
 }

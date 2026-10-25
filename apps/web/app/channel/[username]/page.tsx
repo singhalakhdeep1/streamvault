@@ -29,18 +29,20 @@ async function getChannelVideos(handle: string, page = 1) {
     } catch { return { videos: [], total: 0 }; }
 }
 
-export async function generateMetadata({ params }: { params: { username: string } }) {
-    const channel = await getChannel(params.username);
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
+    const { username } = await params;
+    const channel = await getChannel(username);
     return {
         title: channel ? `${channel.name} — StreamVault` : 'Channel',
         description: channel?.description,
     };
 }
 
-export default async function ChannelPage({ params }: { params: { username: string } }) {
+export default async function ChannelPage({ params }: { params: Promise<{ username: string }> }) {
+    const { username } = await params;
     const [channel, videosData] = await Promise.all([
-        getChannel(params.username),
-        getChannelVideos(params.username),
+        getChannel(username),
+        getChannelVideos(username),
     ]);
 
     if (!channel) notFound();

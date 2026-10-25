@@ -13,7 +13,7 @@ export class PaymentsService {
         private readonly prisma: PrismaService,
     ) {
         this.stripe = new Stripe(config.get('STRIPE_SECRET_KEY', 'sk_test_placeholder'), {
-            apiVersion: '2024-06-20',
+            apiVersion: '2024-06-20' as any,
         });
     }
 

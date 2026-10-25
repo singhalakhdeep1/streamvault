@@ -44,6 +44,22 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         this.server.to(`user:${userId}`).emit(event, data);
     }
 
+    sendToUser(userId: string, event: string, data: any) {
+        this.pushToUser(userId, event, data);
+    }
+
+    broadcastLiveStarted(channelId: string, data: any) {
+        this.server.emit('live:started', { channelId, ...data });
+    }
+
+    broadcastLiveEnded(channelId: string, data: any) {
+        this.server.emit('live:ended', { channelId, ...data });
+    }
+
+    broadcastViewerCount(channelId: string, count: number) {
+        this.server.emit('live:viewers', { channelId, count });
+    }
+
     @SubscribeMessage('mark-read')
     handleMarkRead(client: Socket, notificationId: string) {
         this.logger.debug(`Mark read ${notificationId} for ${client.data.userId}`);

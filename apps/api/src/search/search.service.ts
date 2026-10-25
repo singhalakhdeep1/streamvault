@@ -130,4 +130,12 @@ export class SearchService {
         });
         return result.hits.map(h => ({ id: h.id, title: h.title }));
     }
+
+    async search(query: string, type: 'videos' | 'channels' | 'all' = 'all', page = 1, limit = 20) {
+        return this.searchVideos(query, { page, limit });
+    }
+
+    async suggest(query: string) {
+        return this.getSuggestions(query);
+    }
 }

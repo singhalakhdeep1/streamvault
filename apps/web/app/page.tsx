@@ -9,8 +9,9 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage({
     searchParams,
 }: {
-    searchParams: { category?: string; sort?: string };
+    searchParams: Promise<{ category?: string; sort?: string }>;
 }) {
+    const sp = await searchParams;
     return (
         <div className="px-4 py-6 space-y-8 max-w-[1800px] mx-auto">
             {/* Live now banner */}
@@ -19,12 +20,12 @@ export default async function HomePage({
             </Suspense>
 
             {/* Category filter tabs */}
-            <CategoryFilter activeCategory={searchParams.category} />
+            <CategoryFilter activeCategory={sp.category} />
 
             {/* Trending section */}
-            {!searchParams.category && (
+            {!sp.category && (
                 <section>
-                    <h2 className="text-lg font-semibold mb-4 text-zinc-100">🔥 Trending</h2>
+                    <h2 className="text-lg font-semibold mb-4 text-zinc-100">Trending</h2>
                     <Suspense fallback={<VideoGridSkeleton count={4} />}>
                         <TrendingSection />
                     </Suspense>
@@ -34,10 +35,10 @@ export default async function HomePage({
             {/* Main video feed */}
             <section>
                 <h2 className="text-lg font-semibold mb-4 text-zinc-100">
-                    {searchParams.category ? 'Videos' : 'Recommended'}
+                    {sp.category ? 'Videos' : 'Recommended'}
                 </h2>
                 <Suspense fallback={<VideoGridSkeleton count={12} />}>
-                    <VideoGrid category={searchParams.category} sort={searchParams.sort} />
+                    <VideoGrid category={sp.category} sort={sp.sort} />
                 </Suspense>
             </section>
         </div>

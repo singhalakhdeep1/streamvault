@@ -25,8 +25,9 @@ async function getRelated(id: string) {
     return data.data?.videos || [];
 }
 
-export async function generateMetadata({ params }: { params: { videoId: string } }) {
-    const video = await getVideo(params.videoId);
+export async function generateMetadata({ params }: { params: Promise<{ videoId: string }> }) {
+    const { videoId } = await params;
+    const video = await getVideo(videoId);
     if (!video) return { title: 'Video not found' };
 
     return {
@@ -41,14 +42,15 @@ export async function generateMetadata({ params }: { params: { videoId: string }
     };
 }
 
-export default async function WatchPage({ params }: { params: { videoId: string } }) {
-    const video = await getVideo(params.videoId);
+export default async function WatchPage({ params }: { params: Promise<{ videoId: string }> }) {
+    const { videoId } = await params;
+    const video = await getVideo(videoId);
 
     if (!video || video.status !== 'READY') {
         notFound();
     }
 
-    const [related] = await Promise.all([getRelated(params.videoId)]);
+    const [related] = await Promise.all([getRelated(videoId)]);
 
     // Build HLS master URL
     const hlsUrl = video.hlsMasterKey
@@ -74,7 +76,7 @@ export default async function WatchPage({ params }: { params: { videoId: string 
 
                     {/* Comments */}
                     <Suspense fallback={<div className="h-40 animate-pulse bg-zinc-800 rounded-xl" />}>
-                        <CommentSection videoId={params.videoId} commentCount={video._count?.comments || 0} />
+                        <CommentSection videoId={videoId} commentCount={video._count?.comments || 0} />
                     </Suspense>
                 </div>
 

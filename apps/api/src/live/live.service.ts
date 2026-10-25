@@ -64,7 +64,7 @@ export class LiveService {
         // Notify subscribers
         await this.notifySubscribersLiveStarted(channelId, livestream.id);
 
-        this.notificationsGateway.broadcastLiveStarted(livestream);
+        this.notificationsGateway.broadcastLiveStarted(livestream.id, livestream);
         return livestream;
     }
 
@@ -113,7 +113,7 @@ export class LiveService {
             `live:total_viewers:${livestreamId}`,
         );
 
-        this.notificationsGateway.broadcastLiveEnded(livestreamId);
+        this.notificationsGateway.broadcastLiveEnded(livestreamId, {});
     }
 
     // ─── Get live stream info ─────────────────────────────────────────────

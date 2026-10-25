@@ -3,12 +3,13 @@ import { SearchResults } from '@/components/search/SearchResults';
 import { SearchFilters } from '@/components/search/SearchFilters';
 
 interface Props {
-    searchParams: { q?: string; type?: string; page?: string };
+    searchParams: Promise<{ q?: string; type?: string; page?: string }>;
 }
 
 export async function generateMetadata({ searchParams }: Props) {
+    const sp = await searchParams;
     return {
-        title: searchParams.q ? `"${searchParams.q}" — StreamVault Search` : 'Search — StreamVault',
+        title: sp.q ? `"${sp.q}" — StreamVault Search` : 'Search — StreamVault',
     };
 }
 
@@ -26,9 +27,10 @@ async function getResults(query: string, type: string, page: number) {
 }
 
 export default async function SearchPage({ searchParams }: Props) {
-    const query = searchParams.q || '';
-    const type = searchParams.type || 'all';
-    const page = parseInt(searchParams.page || '1');
+    const sp = await searchParams;
+    const query = sp.q || '';
+    const type = sp.type || 'all';
+    const page = parseInt(sp.page || '1');
 
     const results = await getResults(query, type, page);
 

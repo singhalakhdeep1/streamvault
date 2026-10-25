@@ -77,7 +77,7 @@ export class TranscodingProcessor {
 
             await job.progress(90);
 
-            const result = await transcoderRes.json();
+            const result = await transcoderRes.json() as any;
 
             // Save quality records
             const qualityCreates = result.qualities.map((q: any) => ({
